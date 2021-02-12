@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 /* eslint-disable strict */
 const WebSocket = require('ws');
 var models = require('./server').models;
@@ -14,7 +15,6 @@ ws.on('connection', (ws) => {
           error: err,
         }));
       } else {
-        // eslint-disable-next-line max-len
         models.User.findOne({where: {id: result.userId}, include: 'Profile'}, (err2, user) => {
           if (err2) {
             ws.send(JSON.stringify({
@@ -27,8 +27,9 @@ ws.on('connection', (ws) => {
               email: user.email,
               ws: ws,
             };
-            clients.push(userObj.email);
-            console.log('Current Clients', clients);
+            clients.push(userObj);
+            // console.log('Current Clients', clients);
+            clients.map(u => console.log(u.email));
             ws.send(JSON.stringify({
               type: 'LOGGEDIN',
               data: {
@@ -75,7 +76,6 @@ ws.on('connection', (ws) => {
           break;
         case 'SEARCH':
           console.log('Searching for ', parsed.data);
-          // eslint-disable-next-line max-len
           models.User.find({where: {email: {like: parsed.data}}}, (err2, users) => {
             if (!err2 && users) {
               ws.send(JSON.stringify({
@@ -84,6 +84,35 @@ ws.on('connection', (ws) => {
                   users: users,
                 },
               }));
+            }
+          });
+          break;
+        case 'FIND_THREAD':
+          models.Thread.findOne({where: {
+            and: [
+              {users: {like: parsed.data[0]}},
+              {users: {like: parsed.data[1]}},
+            ],
+          }}, (err, thread) => {
+            if (!err && thread) {
+              ws.send(JSON.stringify({
+                type: 'ADD_THREAD',
+                data: thread,
+              }));
+            } else {
+              models.Thread.create({
+                lastUpdated: new Date(),
+                users: parsed.data,
+              }, (err2, thread) => {
+                if (!err2 && thread) {
+                  clients.filter(u => thread.users.indexOf(u.id.toString()) > -1).map(client => {
+                    client.ws.send(JSON.stringify({
+                      type: 'ADD_THREAD',
+                      data: thread,
+                    }));
+                  });
+                }
+              });
             }
           });
           break;

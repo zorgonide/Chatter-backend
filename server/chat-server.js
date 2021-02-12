@@ -73,6 +73,20 @@ ws.on('connection', (ws) => {
         case 'LOGIN':
           login(parsed.data.email, parsed.data.password);
           break;
+        case 'SEARCH':
+          console.log('Searching for ', parsed.data);
+          // eslint-disable-next-line max-len
+          models.User.find({where: {email: {like: parsed.data}}}, (err2, users) => {
+            if (!err2 && users) {
+              ws.send(JSON.stringify({
+                type: 'GOT_USERS',
+                data: {
+                  users: users,
+                },
+              }));
+            }
+          });
+          break;
         default:
           console.log('Nothing 2 C here');
       }

@@ -5,10 +5,6 @@ var models = require('./server').models;
 
 const ws = new WebSocket.Server({port: 8080});
 let clients = [];
-const printCLientCount = () => {
-  console.log('Clients ', clients.length);
-};
-setInterval(printCLientCount, 1000);
 
 ws.on('connection', (ws) => {
   function getInitialThreads(userId) {

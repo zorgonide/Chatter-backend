@@ -71,6 +71,27 @@ ws.on('connection', (ws) => {
             }
           });
           break;
+        case 'CONNECT_WITH_TOKEN':
+          models.User.findById(parsed.data.userId, (err2, user) => {
+            if (!err2 && user) {
+              const userObj = {
+                id: user.id,
+                email: user.email,
+                ws: ws,
+              };
+              clients.push(userObj);
+              // console.log('Current Clients', clients);
+              clients.map(u => console.log(u.email));
+              // ws.send(JSON.stringify({
+              //   type: 'LOGGEDIN',
+              //   data: {
+              //     session: result,
+              //     user: user,
+              //   },
+              // }));
+            }
+          });
+          break;
         case 'LOGIN':
           login(parsed.data.email, parsed.data.password);
           break;
@@ -116,6 +137,9 @@ ws.on('connection', (ws) => {
             }
           });
           break;
+        // case 'THREAD_LOAD':
+
+        //   break;
         default:
           console.log('Nothing 2 C here');
       }

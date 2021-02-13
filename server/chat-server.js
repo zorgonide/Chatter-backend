@@ -5,8 +5,22 @@ var models = require('./server').models;
 
 const ws = new WebSocket.Server({port: 8080});
 let clients = [];
+const printCLientCount = () => {
+  console.log('Clients ', clients.length);
+};
+setInterval(printCLientCount, 1000);
 
 ws.on('connection', (ws) => {
+  function getInitialThreads(userId) {
+    models.Thread.find({where: {}}, (err, threads) => {
+      if (!err && threads) {
+        ws.send(JSON.stringify({
+          type: 'INITIAL_THREADS',
+          data: threads,
+        }));
+      }
+    });
+  }
   function login(email, pass) {
     models.User.login({email: email, password: pass}, (err, result) => {
       if (err) {
@@ -22,6 +36,7 @@ ws.on('connection', (ws) => {
               error: err2,
             }));
           } else {
+            ws.uid = user.id + new Date().getTime().toString();
             const userObj = {
               id: user.id,
               email: user.email,
@@ -29,7 +44,9 @@ ws.on('connection', (ws) => {
             };
             clients.push(userObj);
             // console.log('Current Clients', clients);
-            clients.map(u => console.log(u.email));
+            // clients.map(u => console.log('Current Clients', u.email));
+            console.log(clients.map(c => c.email));
+            getInitialThreads(user.id);
             ws.send(JSON.stringify({
               type: 'LOGGEDIN',
               data: {
@@ -42,6 +59,19 @@ ws.on('connection', (ws) => {
       }
     });
   }
+
+  ws.on('close', (req) => {
+    console.log('Req closed', req);
+    let clientIndex = -1;
+    clients.map((c, i) => {
+      if (c.ws._closeCode === req) {
+        clientIndex = i;
+      }
+    });
+    if (clientIndex > -1) {
+      clients.splice(clientIndex, 1);
+    }
+  });
 
   ws.on('message', (message) => {
     console.log('message: ', JSON.parse(message));
@@ -74,21 +104,15 @@ ws.on('connection', (ws) => {
         case 'CONNECT_WITH_TOKEN':
           models.User.findById(parsed.data.userId, (err2, user) => {
             if (!err2 && user) {
+              ws.uid = user.id + new Date().getTime().toString();
               const userObj = {
                 id: user.id,
                 email: user.email,
                 ws: ws,
               };
               clients.push(userObj);
-              // console.log('Current Clients', clients);
-              clients.map(u => console.log(u.email));
-              // ws.send(JSON.stringify({
-              //   type: 'LOGGEDIN',
-              //   data: {
-              //     session: result,
-              //     user: user,
-              //   },
-              // }));
+              console.log(clients.map(c => c.email));
+              getInitialThreads(user.id);
             }
           });
           break;

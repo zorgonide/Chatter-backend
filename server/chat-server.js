@@ -10,10 +10,17 @@ ws.on('connection', (ws) => {
   function getInitialThreads(userId) {
     models.Thread.find({where: {}, include: 'Messages'}, (err, threads) => {
       if (!err && threads) {
-        ws.send(JSON.stringify({
-          type: 'INITIAL_THREADS',
-          data: threads,
-        }));
+        threads.map((thread, i) => {
+          models.User.find({where: {id: {inq: thread.users}}}, (err3, users) => {
+            thread.profiles = users;
+            if (i === threads.length -1) {
+              ws.send(JSON.stringify({
+                type: 'INITIAL_THREADS',
+                data: threads,
+              }));
+            }
+          });
+        });
       }
     });
   }

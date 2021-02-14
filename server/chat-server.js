@@ -8,7 +8,7 @@ let clients = [];
 
 ws.on('connection', (ws) => {
   function getInitialThreads(userId) {
-    models.Thread.find({where: {}}, (err, threads) => {
+    models.Thread.find({where: {}, include: 'Messages'}, (err, threads) => {
       if (!err && threads) {
         ws.send(JSON.stringify({
           type: 'INITIAL_THREADS',
@@ -157,9 +157,40 @@ ws.on('connection', (ws) => {
             }
           });
           break;
-        // case 'THREAD_LOAD':
-
-        //   break;
+        case 'THREAD_LOAD':
+          models.Message.find({where: {
+            threadId: parsed.data.threadId,
+          },
+            order: 'date DESC',
+            skip: parsed.data.skip,
+            limit: 10,
+          }, (err2, messages) => {
+            if (!err2 && messages) {
+              ws.send(JSON.stringify({
+                type: 'GOT_MESSAGES',
+                threadId: parsed.data.threadId,
+                messages: messages,
+              }));
+            }
+          });
+          break;
+        case 'ADD_MESSAGE':
+          models.Thread.findById(parsed.threadId, (err2, thread) => {
+            if (!err2 && thread) {
+              models.Message.upsert(parsed.message, (err3, message) => {
+                if (!err3 && message) {
+                  clients.filter(client => thread.users.indexOf(client.id.toString()) > -1).map(client => {
+                    client.ws.send(JSON.stringify({
+                      type: 'ADD_MESSAGE_TO_THREAD',
+                      threadId: parsed.threadId,
+                      message: message,
+                    }));
+                  });
+                }
+              });
+            }
+          });
+          break;
         default:
           console.log('Nothing 2 C here');
       }
